@@ -15,65 +15,70 @@ var Layout = factory.class({
   // new Layout(root)
   constructor: function(root) {
     this.root = root;
+    this.width = parseInt(this.root.offsetWidth);
+    this.height = parseInt(this.root.offsetHeight);
     this.elements = [];
-    this.init();
-  },
-  
-  // .init()
-  init: function() {
-    
     this.pointer = new Pointer(this.root);
-    
-    this.pointer.on("click",function(event) {
-      console.log("click",event);
-    });
-    
-    this.pointer.on("rightclick",function(event) {
-      console.log("rightclick",event);
-    });
-    
-    this.pointer.on("dragstart",function(event) {
-      console.log("dragstart",event);
-    });
-    
-    this.pointer.on("dragstop",function(event) {
-      console.log("dragstop",event);
-    });
-    
-    this.pointer.on("dragmove",function(event) {
-      console.log("dragmove",event);
-    });
-    
+    this.addListener();
   },
-  
-  // .add(element, ...)
-  add: function() {
+
+// - -------------------------------------------------------------------- - //
+    
+  // .addElement(element, ...)
+  addElement: function() {
+    var root = this.root;
+    var elements = this.elements;
     var length = arguments.length;
     for (var i = 0; i < length; i++) {
       var element = arguments[i];
-      this.elements[element.id] = element;
-      this.root.appendChild(element.node);      
+      elements[element.id] = element;
+      root.appendChild(element.node);      
     }    
   },
   
-  // .place()
-  place: function() {
-    var ids = Object.keys(this.elements);
+  // .addListener()
+  addListener: function() {
+    this.pointer.on("move",function(event) {
+      event.layout = this;
+      var elements = this.elements;
+      var ids = Object.keys(elements);
+      var length = ids.length;
+      for (var i = 0; i < length; i++) {
+        elements[ids[i]].triggerInteraction(event);
+      }
+    }.bind(this));    
+  },
+
+// - -------------------------------------------------------------------- - //
+  
+  // .apply()
+  apply: function() {
+    
+    var elements = this.elements;
+    var ids = Object.keys(elements);
     var length = ids.length;
-    var ok = 0;
-    var attr = {};
-    CYCLES: for (var c = 0; c < 10; c++) {      
-      ELEMENTS: for (var i = 0; i < length; i++) {
-        var id = ids[i];
-        var element = this.elements[id];
-        if (element.place(attr)) {
-          ok++
+    
+    var vars = {};
+    for (var i = 0; i < length; i++) {
+      elements[ids[i]].mergeVars(vars);
+    }
+    
+    var doneCount = 0;
+    var doneElements = {};    
+    for (var c = 0; c < 10; c++) {
+      for (var i = 0; i < length; i++) {
+        if (!doneElements[i]) {
+          if (elements[ids[i]].evalExpr(vars)) {
+            doneCount++;
+            doneElements[i] = true;
+          }
         }
-      }
-      if (ok === length) {
-        break CYCLES;
-      }
-    }    
+      }      
+      if (doneCount === length) {
+        break;
+      }      
+    }
+    
   },
   
 });

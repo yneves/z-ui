@@ -4,7 +4,6 @@
 var events = require("events");
 var factory = require("bauer-factory");
 
-
 // - -------------------------------------------------------------------- - //
 // - Pointer
 
@@ -14,14 +13,16 @@ var Pointer = factory.class({
   
   // new Pointer(node)
   constructor: function(node) {
-    this.node = node;
-    this.init();
+    this.top = 0;
+    this.left = 0;
+    this.node = node;    
+    this.addListener();
   },
   
-  // .init()
-  init: function() {
+  // .addListener()
+  addListener: function() {
     
-    var emitter = this;
+    var pointer = this;
     
     var hasPointer = window.navigator.msPointerEnabled;
 		if (hasPointer) {
@@ -93,18 +94,18 @@ var Pointer = factory.class({
 				currentX = event.clientX + documentElement.scrollLeft;
 				currentY = event.clientY + documentElement.scrollTop;
 			}
-			if (isDragging) {
-				event.pointer = { left: currentX, top: currentY };
-        event.isLeftClick = isLeftButton;
-        event.isRightClick = isRightButton;
-				emitter.emit("dragmove",event);
+      pointer.top = currentY;
+      pointer.left = currentX;
+      event.pointer = pointer;      
+      event.isLeftClick = isLeftButton;
+      event.isRightClick = isRightButton;
+      pointer.emit("move",event);
+			if (isDragging) {				
+				pointer.emit("dragmove",event);
 			} else if (isLeftButton || isRightButton) {
 				isDragging = (Math.abs(currentX - startX) > dragDistance) || (Math.abs(currentY - startY) > dragDistance);
-				if (isDragging) {
-					event.pointer = { left: currentX, top: currentY };
-					event.isLeftClick = isLeftButton;
-          event.isRightClick = isRightButton;
-					emitter.emit("dragstart",event);
+				if (isDragging) {					
+					pointer.emit("dragstart",event);
 				}
 			}
 		};
@@ -123,29 +124,23 @@ var Pointer = factory.class({
 				currentX = event.clientX + documentElement.scrollLeft;
 				currentY = event.clientY + documentElement.scrollTop;
 			}
-			if (isDragging) {
-				event.pointer = { left: currentX, top: currentY };
-        event.isLeftClick = isLeftButton;
-        event.isRightClick = isRightButton;
-				emitter.emit("dragstop",event);
-			} else if (isLeftButton) {
-				event.pointer = { left: currentX, top: currentY };
-        event.isLeftClick = isLeftButton;
-        event.isRightClick = isRightButton;
-				emitter.emit("click",event);
-			} else if (isRightButton) {
-				event.pointer = { left: currentX, top: currentY };
-        event.isLeftClick = isLeftButton;
-        event.isRightClick = isRightButton;
-				emitter.emit("rightclick",event);
+      pointer.top = currentY;
+      pointer.left = currentX;
+      event.pointer = pointer;      
+      event.isLeftClick = isLeftButton;
+      event.isRightClick = isRightButton;
+			if (isDragging) {				
+				pointer.emit("dragstop",event);
+			} else if (isLeftButton) {				
+				pointer.emit("click",event);
+			} else if (isRightButton) {				
+				pointer.emit("rightclick",event);
 			}
 			startX = undefined;
 			startY = undefined;
 			isDragging = false;
 			isLeftButton = false;
-			isRightButton = false;
-			removeListener(documentElement,mouseMove,handleMove);
-			removeListener(documentElement,mouseUp,handleUp);
+			isRightButton = false;			
 		};
 
 		var handleDown = function(event) {
@@ -167,14 +162,16 @@ var Pointer = factory.class({
 				} else {
 					startX = event.clientX + documentElement.scrollLeft;
 					startY = event.clientY + documentElement.scrollTop;
-				}
-				addListener(documentElement,mouseMove,handleMove);
-				addListener(documentElement,mouseUp,handleUp);
+				}				
 			}
+      pointer.top = startY;
+      pointer.left = startX;
 		};
 
 		addListener(this.node,mouseDown,handleDown);
-		addListener(this.node,contextMenu,handleMenu);
+		addListener(this.node,mouseMove,handleMove);
+    addListener(this.node,mouseUp,handleUp);
+    addListener(this.node,contextMenu,handleMenu);
     
   },
   
