@@ -20,6 +20,7 @@ var modules = [
 	require("./lib/merge.js"),
 	require("./lib/clone.js"),
 	require("./lib/stub.js"),
+	require("./lib/eval.js"),
 ];
 
 // - -------------------------------------------------------------------- - //
@@ -76,7 +77,7 @@ module.exports = exports = factory;
 
 // - -------------------------------------------------------------------- - //
 
-},{"./lib/class.js":2,"./lib/clone.js":3,"./lib/error.js":4,"./lib/extend.js":5,"./lib/inherits.js":6,"./lib/merge.js":7,"./lib/method.js":8,"./lib/property.js":9,"./lib/stub.js":10,"./lib/type.js":11}],2:[function(require,module,exports){
+},{"./lib/class.js":2,"./lib/clone.js":3,"./lib/error.js":4,"./lib/eval.js":5,"./lib/extend.js":6,"./lib/inherits.js":7,"./lib/merge.js":8,"./lib/method.js":9,"./lib/property.js":10,"./lib/stub.js":11,"./lib/type.js":12}],2:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -282,7 +283,7 @@ factory.cls = { Class: Class };
 
 // - -------------------------------------------------------------------- - //
 
-},{"./inherits.js":6,"./method.js":8,"./property.js":9,"./type.js":11}],3:[function(require,module,exports){
+},{"./inherits.js":7,"./method.js":9,"./property.js":10,"./type.js":12}],3:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -342,7 +343,7 @@ factory.clone = lib.method.createMethod({
 
 // - -------------------------------------------------------------------- - //
 
-},{"./method.js":8}],4:[function(require,module,exports){
+},{"./method.js":9}],4:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -407,7 +408,148 @@ factory.createError = factory.error = lib.method.createMethod({
 
 // - -------------------------------------------------------------------- - //
 
-},{"./class.js":2,"./method.js":8}],5:[function(require,module,exports){
+},{"./class.js":2,"./method.js":9}],5:[function(require,module,exports){
+/*!
+**  bauer-factory -- General utilities for nodejs.
+**  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
+**  Licensed under The MIT License <http://opensource.org/licenses/MIT>
+**  Distributed on <http://github.com/yneves/node-bauer-factory>
+*/
+
+// - -------------------------------------------------------------------- - //
+// - Libs
+
+var lib = {
+    merge: require("./merge.js"),  
+    class: require("./class.js"),
+    method: require("./method.js"),  
+};
+
+// - -------------------------------------------------------------------- - //
+// - Exports
+
+var factory = module.exports = {};
+
+// - -------------------------------------------------------------------- - //
+
+var Evaluator = lib.class.createClass({
+  
+    // new Evaluator(expr,vars)
+    constructor: function(expr,vars) {
+        if (expr) {
+            this.setExpr(expr);
+        }
+        if (vars) {
+            this.setVars(vars);
+        }      
+    },
+  
+    setVars: {
+
+        // .setVars(vars)
+        o: function(vars) {
+            this.vars = vars;
+        },
+
+    },
+  
+    setExpr: {
+    
+        // .setExpr(options)
+        o: function(options) {
+            if (options.vars) {
+                this.setVars(options.vars);
+            }
+            if (options.expr) {
+                this.setExpr(options.expr);
+            }        
+        },
+    
+        // .setExpr(expr)
+        s: function(expr) {
+            
+            var vars = {};
+            var copy = expr.replace(/\.[a-zA-Z\_]+[a-zA-Z0-9\_]?/g,'');
+            var names = copy.match(/([a-zA-Z\_]+[a-zA-Z0-9\_]?)/g);
+            var length = names.length;
+            var i;
+            var name;
+            var code;
+            
+            code = [
+                "var vars = {};",
+                "var argsLength = arguments.length;",
+                "for (var i = 0; i < argsLength; i++) {",
+                    "var arg = arguments[i];",
+                    "if (arg instanceof Object) {",
+                        "var names = Object.keys(arg);",
+                        "var namesLength = names.length;",
+                        "for (var n = 0; n < namesLength; n++) {",
+                            "var name = names[n];",
+                            "vars[name] = arg[name];",
+                        "}",
+                    "}",
+                "}",
+            ];
+            
+            for (i = 0; i < length; i++) {
+                name = names[i];
+                if (!vars[name]) {
+                    vars[name] = true;
+                    code.push("var " + name + " = vars['" + name + "'];");
+                }
+            }      
+            
+            code.push("return (" + expr + ");");
+            code = code.join("\n");
+            
+            this.code = new Function(code);
+            this.names = Object.keys(vars);
+        },
+    
+  },
+  
+    // .evaluate(vars)
+    evaluate: function(vars) {
+        return this.code.call(this,this.vars,vars);
+    },
+  
+});
+
+// - -------------------------------------------------------------------- - //
+
+factory.evaluator = factory.createEvaluator = lib.method.createMethod({
+
+    // .createEvaluator(options)
+    o: function(options) {
+        return new Evaluator(options);
+    },
+
+    // .createEvaluator(expr)
+    s: function(expr) {
+        return new Evaluator(expr);
+    },
+
+    // .createEvaluator(expr,vars)
+    so: function(expr,vars) {
+        return new Evaluator(expr,vars);
+    },
+  
+});
+
+factory.isEvaluator = function(arg) {
+    return arg instanceof Evaluator;
+};
+
+// - -------------------------------------------------------------------- - //
+
+factory.cls = { 
+    Evaluator: Evaluator 
+};
+
+// - -------------------------------------------------------------------- - //
+
+},{"./class.js":2,"./merge.js":8,"./method.js":9}],6:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -503,7 +645,7 @@ factory.extend = lib.method.createMethod({
 
 // - -------------------------------------------------------------------- - //
 
-},{"./method.js":8,"./type.js":11}],6:[function(require,module,exports){
+},{"./method.js":9,"./type.js":12}],7:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -605,7 +747,7 @@ factory.super = factory.superOf = lib.method.createMethod({
 
 // - -------------------------------------------------------------------- - //
 
-},{"./method.js":8,"./type.js":11}],7:[function(require,module,exports){
+},{"./method.js":9,"./type.js":12}],8:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -668,7 +810,7 @@ factory.merge = lib.method.createMethod({
 
 // - -------------------------------------------------------------------- - //
 
-},{"./method.js":8,"./type.js":11}],8:[function(require,module,exports){
+},{"./method.js":9,"./type.js":12}],9:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -923,7 +1065,7 @@ factory.cls = { Method: Method };
 
 // - -------------------------------------------------------------------- - //
 
-},{"./type.js":11}],9:[function(require,module,exports){
+},{"./type.js":12}],10:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -993,7 +1135,7 @@ factory.cls = { Property: Property };
 
 // - -------------------------------------------------------------------- - //
 
-},{"./extend.js":5,"./inherits.js":6,"./method.js":8}],10:[function(require,module,exports){
+},{"./extend.js":6,"./inherits.js":7,"./method.js":9}],11:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -1162,7 +1304,7 @@ factory.createStub = factory.stub = function(opts) {
 
 // - -------------------------------------------------------------------- - //
 
-},{"./type.js":11,"assert":12}],11:[function(require,module,exports){
+},{"./type.js":12,"assert":13}],12:[function(require,module,exports){
 /*!
 **  bauer-factory -- General utilities for nodejs.
 **  Copyright (c) 2014 Yuri Neves Silveira <http://yneves.com>
@@ -1291,7 +1433,7 @@ factory.ifArguments = function(arg,other) { return factory.typeOf(arg) === "argu
 
 // - -------------------------------------------------------------------- - //
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -1652,7 +1794,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":17}],13:[function(require,module,exports){
+},{"util/":18}],14:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -1955,7 +2097,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1980,7 +2122,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2039,14 +2181,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2636,365 +2778,361 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":16,"_process":15,"inherits":14}],18:[function(require,module,exports){
+},{"./support/isBuffer":17,"_process":16,"inherits":15}],19:[function(require,module,exports){
+'use strict';
 // - -------------------------------------------------------------------- - //
 // - Libs
 
-var events = require("events");
-var factory = require("bauer-factory");
-var parser = require("./parser.js").Parser;
-var Expression = parser.Expression;
+var events = require('events');
+var factory = require('bauer-factory');
 
 // - -------------------------------------------------------------------- - //
-// - Element
+// - Area
 
-var Element = factory.class({
-  
-  inherits: events.EventEmitter,
-  
-  // new Element(vars)
-  constructor: function(vars) {
-    this.coords = {};
-    this.interactions = [];
-    this.setId(vars);
-    this.setVars(vars);
-    this.createNode();
-  },
+var Area = factory.class({
 
-// - -------------------------------------------------------------------- - //
-  
-  setId: {
-    
-    // .setId(vars)
-    o: function(vars) {
-      if (factory.isString(vars.id)) {
-        this.id = vars.id;
-      } else {
-        this.id = "e" + factory.guid();
-      }
-    },
-    
-    // .setId(id)
+    inherits: events.EventEmitter,
+
+    constructor: {
+
+    // new Element(id)
     s: function(id) {
-      this.id = id;
+        this.init();
+        this.setId(id);
+    },
+
+    // new Element(coords)
+    o: function(coords) {
+        this.init();
+        this.setId('e' + factory.guid());
+        this.setCoords(coords);
+    },
+
+    // new Element(id,coords)
+    so: function(id,coords) {
+        this.init();
+        this.setId(id);
+        this.setCoords(coords);
+    },
+
+  },
+
+// - -------------------------------------------------------------------- - //
+
+    // .init();
+    init: function() {
+        this.keys = [];
+        this.vars = {};
+        this.values = {};
+        this.coords = {};        
+        this.interactions = [];
+        this.node = document.createElement('DIV');
+        this.node.style.position = 'absolute';
+        this.node.style.backgroundColor = ['red','yellow','green','black','blue','violet','brown','grey'][Math.floor(Math.random() * 8)];
+    },
+
+    setId: {
+
+        // .setId(id)
+        s: function(id) {
+            this.id = id;
+        },
+
+    },
+
+    setCoords: {
+
+        // .setCoords(coords)
+        o: function(coords) {
+
+            var keys = Object.keys(coords);
+            var length = keys.length;
+            var i;
+            var key;
+            var value;
+
+            for (i = 0; i < length; i++) {
+                key = keys[i];
+                value = coords[key];
+                if (factory.isNumber(value)) {
+                    this.coords[key] = value;
+                } else if (factory.isEvaluator(value)) {
+                    this.coords[key] = value;
+                } else {
+                    this.coords[key] = factory.createEvaluator(value);
+                }
+            }
+            
+            this.keys = Object.keys(this.coords);
+        },
+
     },
     
-  },
+    // .getCoords()
+    getCoords: function() {
+        var coords = {};
+        var keys = this.keys;
+        var length = keys.length;
+        var i;
+        var key;
 
-  // .setVars(vars)
-  setVars: function(vars) {
-    this.vars = {};    
-    this.keys = [];
-    var keys = Object.keys(vars);
-    var length = keys.length;
-    for (var i = 0; i < length; i++) {
-      var key = keys[i];
-      if (key !== "id") {        
-        this.keys.push(key);
-        var val = vars[key];
-        if (factory.isNumber(val)) {
-          this.vars[key] = val;
-        } else if (val instanceof Expression) {
-          this.vars[key] = val;
-        } else {
-          this.vars[key] = parser.parse(val);
-        }        
-      }        
-    }
-  },
-  
-  // .createNode()
-  createNode: function() {
-    this.node = document.createElement("DIV");
-    var style = this.node.style;
-    style.position = "absolute";
-    style.backgroundColor = ["red","yellow","green","black","blue","violet","brown","grey"][Math.floor(Math.random() * 8)];
-  },
+        for (i = 0; i < length; i++) {
+            key = keys[i];
+            coords[key] = this.coords[key];
+        }
+        
+        return coords;
+    },
 
 // - -------------------------------------------------------------------- - //
-  
-  // .mergeVars(vars)
-  mergeVars: function(vars) {
-    var id = this.id;
-    var keys = Object.keys(this.vars);
-    var length = keys.length;    
-    for (var i = 0; i < length; i++) {
-      var key = keys[i];      
-      vars[id + "_" + key] = this.vars[key];      
-    }
-  },
 
-  // .createExpr(text)
-  createExpr: function(text) {    
-    var expression = parser.parse(text);    
-    var id = this.id;
-    var keys = this.keys;
-    var length = keys.length;
-    for (var i = 0; i < length; i++) {
-      var key = keys[i];
-      expression = expression.substitute(key,id + "_" + key);
-    }
-    return expression;
-  },
-  
-  // .evalExpr(vars)
-  evalExpr: function(vars) {
+    // .setLayout(layout)
+    setLayout: function(layout) {
+        this.layout = layout;
+    },
     
-    var id = this.id;
-    var keys = this.keys;
-    var length = keys.length;
-    
-    var done = 0;    
-    for (var i = 0; i < length; i++) {      
-      var id_key = id + "_" + keys[i];      
-      if (vars[id_key] instanceof Expression) {
-        var value = vars[id_key].evaluate(vars);
-        if (factory.isNumber(value)) {
-          vars[id_key] = value;
-          done++;
-        }        
-      } else if (factory.isNumber(vars[id_key])) {
-        done++;
-      }      
-    }
-    
-    if (done) {      
-      var coords = this.coords;
-      var style = this.node.style;
-      for (var i = 0; i < length; i++) {
-        var key = keys[i];      
-        var id_key = id + "_" + key;
-        coords[key] = vars[id_key];
-        var value = vars[id_key].toString() + "px";
-        if (value !== style[key]) {
-          style[key] = value;
-        }          
-      }
-    }
-    
-    return done;
-  },
+    // .getLayout()
+    getLayout: function() {
+        return this.layout;
+    },
+
+    // .applyLayout(coords)
+    applyLayout: function(coords) {
+
+        var id = this.id;
+        var keys = this.keys;
+        var values = this.values;
+        var style = this.node.style;
+        var length = keys.length;
+        var done = 0;
+        var i;
+        var result;
+        var key;
+        var value;
+
+        for (i = 0; i < length; i++) {
+            key = keys[i];            
+            if (factory.isEvaluator(coords[id][key])) {
+                result = coords[id][key].evaluate(coords);
+                if (factory.isNumber(result)) {
+                    coords[id][key] = result;
+                    done++;
+                }
+            } else if (factory.isNumber(coords[id][key])) {
+                done++;
+            }
+        }
+
+        if (done) {            
+            for (i = 0; i < length; i++) {
+                key = keys[i];
+                value = coords[id][key];
+                if (value !== values[key]) {
+                    values[key] = value;
+                    style[key] = value.toString() + 'px';
+                }
+            }            
+            this.updateVars();
+        }
+
+        return done;
+    },
 
 // - -------------------------------------------------------------------- - //
-  
-  // .updateArea(event)
-  updateArea: function(event) {
-    var coords = this.coords;
-    var hasTop = coords.hasOwnProperty("top");
-    var hasBottom = coords.hasOwnProperty("bottom");
-    var hasLeft = coords.hasOwnProperty("left");
-    var hasRight = coords.hasOwnProperty("right");
-    var hasWidth = coords.hasOwnProperty("width");
-    var hasHeight = coords.hasOwnProperty("height");    
-    this.top = hasTop ? coords.top : hasBottom ? event.layout.height - coords.bottom - coords.height : 0;
-    this.left = hasLeft ? coords.left : hasRight ? event.layout.width - coords.right - coords.width : 0;
-    this.right = hasRight ? event.layout.width - coords.right : hasLeft ? coords.left + coords.width : 0;
-    this.bottom = hasBottom ? event.layout.height - coords.bottom : hasTop ? coords.top + coords.height : 0;
-    this.width = hasWidth ? coords.width : right - left;
-    this.height = hasHeight ? coords.height : bottom - top;
-  },
-  
-  // .addInteraction(interaction)
-  addInteraction: function(interaction) {    
-    this.interactions.push(interaction);
-  },
-  
-  // .triggerInteraction(event)
-  triggerInteraction: function(event) {
-    this.updateArea(event);
-    event.element = this;
-    var interactions = this.interactions;
-    var length = interactions.length;
-    for (var i = 0; i < length; i++) {
-      interactions[i].triggerInteraction(event);
-    }      
-  },
-  
+
+    // .addInteraction(interaction)
+    addInteraction: function(interaction) {
+        this.interactions.push(interaction);
+    },
+
+    // .applyInteraction(context)
+    applyInteraction: function(context) {
+
+        var interactions = this.interactions;
+        var length = interactions.length;
+        var i;
+        
+        for (i = 0; i < length; i++) {
+            interactions[i].applyInteraction(context);
+        }
+
+    },
+
+// - -------------------------------------------------------------------- - //
+
+    // .updateVars()
+    updateVars: function() {
+        var vars = this.vars;
+        var values = this.values;
+        var layout = this.layout;
+        var hasTop = values.hasOwnProperty('top');
+        var hasBottom = values.hasOwnProperty('bottom');
+        var hasLeft = values.hasOwnProperty('left');
+        var hasRight = values.hasOwnProperty('right');
+        var hasWidth = values.hasOwnProperty('width');
+        var hasHeight = values.hasOwnProperty('height');
+        vars.top = hasTop ? values.top : hasBottom ? layout.height - values.bottom - values.height : 0;
+        vars.left = hasLeft ? values.left : hasRight ? layout.width - values.right - values.width : 0;
+        vars.right = hasRight ? layout.width - values.right : hasLeft ? values.left + values.width : 0;
+        vars.bottom = hasBottom ? layout.height - values.bottom : hasTop ? values.top + values.height : 0;
+        vars.width = hasWidth ? values.width : vars.right - vars.left;
+        vars.height = hasHeight ? values.height : vars.bottom - vars.top;
+    },
+
+    createEvaluator: {
+
+        // .createEvaluator(expr)
+        s: function(expr) {
+            var names = ['top', 'bottom', 'left', 'right', 'width', 'height'];
+            var length = names.length;
+            var id = this.id;
+            var i;
+            var name;
+            var regexp;
+            for (i = 0; i < length; i++) {
+                name = names[i];
+                regexp = new RegExp('[^\\.]*' + name,'g');
+                expr = expr.replace(regexp, id + '.' + name);
+            }
+            return factory.createEvaluator(expr);
+        },
+
+    },
+
 });
 
 // - -------------------------------------------------------------------- - //
 // - Exports
 
-module.exports = Element;
+module.exports = Area;
 
 // - -------------------------------------------------------------------- - //
 
-},{"./parser.js":22,"bauer-factory":1,"events":13}],19:[function(require,module,exports){
+},{"bauer-factory":1,"events":14}],20:[function(require,module,exports){
+'use strict';
 // - -------------------------------------------------------------------- - //
 // - Libs
 
-var factory = require("bauer-factory");
-var Layout = require("./layout.js");
-var Element = require("./element.js");
-var Interaction = require("./interaction.js");
+var factory = require('bauer-factory');
+var Area = require('./area.js');
+var Layout = require('./layout.js');
+var Interaction = require('./interaction.js');
+var Draggable = require('./interactions/draggable.js');
 
 // - -------------------------------------------------------------------- - //
 // - Init
 
 window.onload = function() {
 
-  var layout = new Layout(document.body);
+    var layout = new Layout(document.body);
 
-  var a = new Element({
-    id: "a",
-    top: 20,
-    left: 20,
-    width: 100,
-    height: 100,
-  });
-  
-  var b = new Element({
-    id: "b",
-    top: 20,
-    left: a.createExpr("left + 120"),
-    width: 100,
-    height: 100,
-  });
-  
-  var c = new Element({
-    id: "c",
-    top: 20,
-    left: b.createExpr("left + 120"),
-    width: 100,
-    height: 100,
-  });
-  
-  var d = new Element({
-    id: "d",
-    bottom: 20,
-    left: 20,
-    width: 100,
-    height: 100,
-  });
-  
-  layout.addElement(a,b,c,d);
-  
-  layout.apply();
-  
-  var interaction = new Interaction({
-    expr: "element.top <= (pointer.top + distance) && element.top >= (pointer.top - distance)",
-    vars: { distance: 5 },
-  });
-  
-  a.addInteraction(interaction);
-  b.addInteraction(interaction);
-  c.addInteraction(interaction);
-  d.addInteraction(interaction);
-  
-  interaction.on("activate",function(event) {
-    event.element.node.style.cursor = "n-resize";
-  });
-  
-  interaction.on("deactivate",function() {
-    event.element.node.style.cursor = "";
-  });
-  
-    // var distance = 5;
-    // var style = this.node.style;
-    // if (top <= (pointer.top + distance) && top >= (pointer.top - distance)) {
-    //   style.cursor = "n-resize";
-    // } else if (bottom <= (pointer.top + distance) && bottom >= (pointer.top - distance)) {
-    //   style.cursor = "s-resize";
-    // } else if (left <= (pointer.left + distance) && left >= (pointer.left - distance)) {
-    //   style.cursor = "w-resize";
-    // } else if (right <= (pointer.left + distance) && right >= (pointer.left - distance)) {
-    //   style.cursor = "e-resize";
-    // } else if (style.cursor !== "") {
-    //   style.cursor = "";
-    // }
+    var a = new Area('a', {
+        top: 20,
+        left: 20,
+        width: 100,
+        height: 100,
+    });
+
+    var b = new Area('b', {
+        top: a.createEvaluator('top + 10'),
+        left: a.createEvaluator('left + 120'),
+        width: 100,
+        height: 100,
+    });
+
+    var c = new Area('c', {
+        top: b.createEvaluator('top + 10'),
+        left: b.createEvaluator('left + 120'),
+        width: 100,
+        height: 100,
+    });
+
+    var d = new Area('d', {
+        bottom: 20,
+        left: 20,
+        width: 100,
+        height: 100,
+    });
+
+    layout.addArea(a,b,c,d);
+
+    layout.applyLayout();
+    
+    var draggable = new Draggable({
+        restrict: 'target.top <= layout.top || target.left <= layout.left'
+    });
+    
+    a.addInteraction(draggable);
   
 };
 
 
 // - -------------------------------------------------------------------- - //
 
-},{"./element.js":18,"./interaction.js":20,"./layout.js":21,"bauer-factory":1}],20:[function(require,module,exports){
+},{"./area.js":19,"./interaction.js":21,"./interactions/draggable.js":22,"./layout.js":23,"bauer-factory":1}],21:[function(require,module,exports){
+'use strict';
 // - -------------------------------------------------------------------- - //
 // - Libs
 
-var events = require("events");
-var factory = require("bauer-factory");
+var events = require('events');
+var factory = require('bauer-factory');
 
 // - -------------------------------------------------------------------- - //
 // - Interaction
 
 var Interaction = factory.class({
   
-  inherits: events.EventEmitter,
+    inherits: events.EventEmitter,
   
-  // new Interaction(options)
-  constructor: function(options) {
-    this.active = {};
-    this.setExpr(options);
-  },  
-  
-  setVars: {
-  
-    // .setVars(vars)
-    o: function(vars) {
-      this.vars = vars;
-    },
+    // new Interaction()
+    constructor: function() {
+        this.active = {};        
+    },  
     
-  },
-  
-  setExpr: {
-    
-    // .setExpr(options)
-    o: function(options) {
-      this.setExpr(options.expr);
-      this.setVars(options.vars);
+    createEvaluator: {
+        
+        // .createEvaluator(expr)
+        s: function(expr) {
+            this.evaluator = factory.createEvaluator(expr);
+        },
+        
+        // .createEvaluator(parts)
+        a: function(parts) {
+            this.createEvaluator(parts.join(' && '));
+        },
+        
+        // .createEvaluator(options)
+        o: function(options) {
+            this.evaluator = factory.createEvaluator(options);
+        },
+        
     },
-    
-    // .setExpr(expr)
-    s: function(expr) {
-      this.expr = expr;
+  
+    // .applyInteraction(context)
+    applyInteraction: function(context) {        
+        var active = this.active;
+        var areaId;
+        var activate;        
+        if (this.evaluator) {
+            areaId = context.area.id;
+            activate = this.evaluator.evaluate({ 
+                area: context.area.vars,            
+                layout: context.layout.vars,
+                pointer: context.pointer.vars, 
+            });
+            if (activate) {
+                if (!active[areaId]) {
+                    active[areaId] = context;
+                    this.emit('activate',context);
+                }
+            } else {
+                if (active[areaId]) {
+                    this.emit('deactivate',active[areaId]);
+                    delete active[areaId];
+                }
+            }
+        }
     },
-      
-  },
-  
-  
-  evalExpr: {
-    
-    // .evalExpr(vars)
-    o: function(vars) {
-      var activate = false;
-      var code = [];    
-      var names = Object.keys(vars);
-      var length = names.length;
-      for (var i = 0; i < length; i++) {
-        code.push("var " + names[i] + " = vars['" + names[i] + "'];\n");
-      }    
-      var names = Object.keys(this.vars);
-      var length = names.length;
-      for (var i = 0; i < length; i++) {
-        code.push("var " + names[i] + " = this.vars['" + names[i] + "'];\n");
-      }
-      code.push("activate = (" + this.expr + ");\n");
-      eval(code.join(""));
-      return activate;
-    },
-      
-  },
-  
-  // .triggerInteraction(event)
-  triggerInteraction: function(event) {
-    var activate = this.evalExpr({ 
-      element: event.element,
-      pointer: event.pointer, 
-      layout: event.layout,
-    });
-    if (activate) {
-      if (!this.active[event.element.id]) {
-        this.active[event.element.id] = true;
-        this.emit("activate",event);
-      }
-    } else {
-      if (this.active[event.element.id]) {
-        this.active[event.element.id] = false;
-        this.emit("deactivate",event);
-      }
-    }
-  },
   
 });
 
@@ -3005,90 +3143,236 @@ module.exports = Interaction;
 
 // - -------------------------------------------------------------------- - //
 
-},{"bauer-factory":1,"events":13}],21:[function(require,module,exports){
+},{"bauer-factory":1,"events":14}],22:[function(require,module,exports){
+'use strict';
 // - -------------------------------------------------------------------- - //
 // - Libs
 
-var events = require("events");
-var factory = require("bauer-factory");
-var Pointer = require("./pointer.js");
+var factory = require('bauer-factory');
+var Interaction = require('../interaction.js');
+
+// - -------------------------------------------------------------------- - //
+// - Draggable
+
+var Draggable = factory.class({
+
+    inherits: Interaction,
+
+    // new Draggable(options)
+    constructor: function(options) {
+        
+        if (factory.isObject(options)) {
+            if (factory.isDefined(options.restrict)) {
+                this.restrictEvaluator = factory.createEvaluator(options.restrict);
+            }
+        }
+
+        this.createEvaluator([
+            'pointer.left >= area.left',
+            'pointer.left <= area.right',
+            'pointer.top >= area.top',
+            'pointer.top <= area.bottom'
+        ]);
+
+        this.on('activate',this._onActivate.bind(this));
+        this.on('deactivate',this._onDeactivate.bind(this));
+
+    },
+
+    _onActivate: function(context) {
+        var _this = this;
+        var target = {};
+        var relative = {};
+        var restrict;
+        context._onDragStart = function() {
+            relative.top = context.pointer.vars.top - context.area.vars.top;
+            relative.left = context.pointer.vars.left - context.area.vars.left;
+        };
+        context._onDragMove = function() {
+            target.top = context.pointer.vars.top - relative.top;
+            target.left = context.pointer.vars.left - relative.left;
+            target.right = (context.pointer.vars.left - relative.left) + context.area.vars.width;
+            target.bottom = (context.pointer.vars.top - relative.top) + context.area.vars.height;
+            target.width = context.area.vars.width;
+            target.height = context.area.vars.height;
+            
+            if (_this.restrictEvaluator) {
+                
+                restrict = _this.restrictEvaluator.evaluate({
+                    target: target,
+                    area: context.area.vars,
+                    layout: context.layout.vars,
+                    pointer: context.pointer.vars,                    
+                });
+                
+                if (restrict) {
+                    
+                } else {
+                    context.area.setCoords({
+                        top: target.top,
+                        left: target.left,
+                    });
+                }
+            } else {
+                context.area.setCoords({
+                    top: target.top,
+                    left: target.left,
+                });
+            }            
+            context.layout.applyLayout();
+            context.layout.applyInteraction();
+        };
+        context._onDragStop = function() {
+            context.layout.applyLayout();
+            context.layout.applyInteraction();
+        };
+        context.pointer.on('dragstart',context._onDragStart);
+        context.pointer.on('dragmove',context._onDragMove);
+        context.pointer.on('dragstop',context._onDragStop);
+    },
+    
+    _onDeactivate: function(context) {
+        context.pointer.removeListener('dragstart',context._onDragStart);
+        context.pointer.removeListener('dragmove',context._onDragMove);
+        context.pointer.removeListener('dragstop',context._onDragStop);
+    },
+
+});
+
+// - -------------------------------------------------------------------- - //
+// - Exports
+
+module.exports = Draggable;
+
+// - -------------------------------------------------------------------- - //
+
+},{"../interaction.js":21,"bauer-factory":1}],23:[function(require,module,exports){
+'use strict';
+// - -------------------------------------------------------------------- - //
+// - Libs
+
+var events = require('events');
+var factory = require('bauer-factory');
+var Pointer = require('./pointer.js');
 
 // - -------------------------------------------------------------------- - //
 // - Layout
 
 var Layout = factory.class({
 
-  inherits: events.EventEmitter,
-  
-  // new Layout(root)
-  constructor: function(root) {
-    this.root = root;
-    this.width = parseInt(this.root.offsetWidth);
-    this.height = parseInt(this.root.offsetHeight);
-    this.elements = [];
-    this.pointer = new Pointer(this.root);
-    this.addListener();
-  },
+    inherits: events.EventEmitter,
+
+    // new Layout(node)
+    constructor: function(node) {
+        this.vars = {};
+        this.areas = [];
+        this.node = node;
+        this.pointer = new Pointer(this.node);
+        this.pointer.on('move',this._onPointerMove.bind(this));
+        window.onresize = this._onWindowResize.bind(this);
+        this.updateVars();
+    },
+
+    _onPointerMove: function() {
+        this.applyInteraction();
+    },
+
+    _onWindowResize: function() {
+        this.updateVars();
+    },
 
 // - -------------------------------------------------------------------- - //
-    
-  // .addElement(element, ...)
-  addElement: function() {
-    var root = this.root;
-    var elements = this.elements;
-    var length = arguments.length;
-    for (var i = 0; i < length; i++) {
-      var element = arguments[i];
-      elements[element.id] = element;
-      root.appendChild(element.node);      
-    }    
-  },
-  
-  // .addListener()
-  addListener: function() {
-    this.pointer.on("move",function(event) {
-      event.layout = this;
-      var elements = this.elements;
-      var ids = Object.keys(elements);
-      var length = ids.length;
-      for (var i = 0; i < length; i++) {
-        elements[ids[i]].triggerInteraction(event);
-      }
-    }.bind(this));    
-  },
 
-// - -------------------------------------------------------------------- - //
-  
-  // .apply()
-  apply: function() {
-    
-    var elements = this.elements;
-    var ids = Object.keys(elements);
-    var length = ids.length;
-    
-    var vars = {};
-    for (var i = 0; i < length; i++) {
-      elements[ids[i]].mergeVars(vars);
-    }
-    
-    var doneCount = 0;
-    var doneElements = {};    
-    for (var c = 0; c < 10; c++) {
-      for (var i = 0; i < length; i++) {
-        if (!doneElements[i]) {
-          if (elements[ids[i]].evalExpr(vars)) {
-            doneCount++;
-            doneElements[i] = true;
-          }
+    // .addArea(area, ...)
+    addArea: function() {
+        
+        var node = this.node;
+        var areas = this.areas;
+        var length = arguments.length;
+        var i;
+        var area;
+        
+        for (i = 0; i < length; i++) {
+            area = arguments[i];
+            areas[area.id] = area;
+            node.appendChild(area.node);
+            area.setLayout(this);
         }
-      }      
-      if (doneCount === length) {
-        break;
-      }      
-    }
-    
-  },
-  
+        
+    },
+
+// - -------------------------------------------------------------------- - //
+
+    // .updateVars()
+    updateVars: function() {
+        var vars = this.vars;
+        var node = this.node;
+        vars.width = Number(node.offsetWidth);
+        vars.height = Number(node.offsetHeight);
+        vars.top = Number(node.offsetTop);
+        vars.left = Number(node.offsetLeft);
+        vars.right = vars.left + vars.width;
+        vars.bottom = vars.top + vars.height;
+    },
+
+// - -------------------------------------------------------------------- - //
+
+    // .applyLayout()
+    applyLayout: function() {
+
+        var coords = {};
+        var doneCount = 0;
+        var doneAreas = {};
+        var areas = this.areas;
+        var ids = Object.keys(areas);
+        var length = ids.length;
+        var c;
+        var i;
+        var id;
+
+        for (i = 0; i < length; i++) {
+            id = ids[i];
+            coords[id] = areas[id].getCoords();
+        }
+
+        for (c = 0; c < 10; c++) {
+            for (i = 0; i < length; i++) {
+                if (!doneAreas[i]) {
+                    if (areas[ids[i]].applyLayout(coords)) {
+                        doneCount++;
+                        doneAreas[i] = true;
+                    }
+                }
+            }
+            if (doneCount === length) {
+                break;
+            }
+        }
+
+    },
+
+    // .applyInteraction()
+    applyInteraction: function() {
+        
+        var areas = this.areas;
+        var ids = Object.keys(areas);
+        var length = ids.length;
+        var i;
+        var id;
+        var area;
+
+        for (i = 0; i < length; i++) {
+            id = ids[i];
+            area = areas[id];
+            area.applyInteraction({
+                area: area,
+                layout: this,
+                pointer: this.pointer,
+            });
+        }
+        
+    },
+
 });
 
 // - -------------------------------------------------------------------- - //
@@ -3098,941 +3382,13 @@ module.exports = Layout;
 
 // - -------------------------------------------------------------------- - //
 
-},{"./pointer.js":23,"bauer-factory":1,"events":13}],22:[function(require,module,exports){
-/*!
- Based on ndef.parser, by Raphael Graf(r@undefined.ch)
- http://www.undefined.ch/mparser/index.html
-
- Ported to JavaScript and modified by Matthew Crumley (email@matthewcrumley.com, http://silentmatt.com/)
-
- You are free to use and modify this code in anyway you find useful. Please leave this comment in the code
- to acknowledge its original source. If you feel like it, I enjoy hearing about projects that use my code,
- but don't feel like you have to let me know or ask permission.
-*/
-
-//  Added by stlsmiths 6/13/2011
-//  re-define Array.indexOf, because IE doesn't know it ...
-//
-//  from http://stellapower.net/content/javascript-support-and-arrayindexof-ie
-	if (!Array.indexOf) {
-		Array.prototype.indexOf = function (obj, start) {
-			for (var i = (start || 0); i < this.length; i++) {
-				if (this[i] === obj) {
-					return i;
-				}
-			}
-			return -1;
-		}
-	}
-
-var Parser = (function (scope) {
-	function object(o) {
-		function F() {}
-		F.prototype = o;
-		return new F();
-	}
-
-	var TNUMBER = 0;
-	var TOP1 = 1;
-	var TOP2 = 2;
-	var TVAR = 3;
-	var TFUNCALL = 4;
-
-	function Token(type_, index_, prio_, number_) {
-		this.type_ = type_;
-		this.index_ = index_ || 0;
-		this.prio_ = prio_ || 0;
-		this.number_ = (number_ !== undefined && number_ !== null) ? number_ : 0;
-		this.toString = function () {
-			switch (this.type_) {
-			case TNUMBER:
-				return this.number_;
-			case TOP1:
-			case TOP2:
-			case TVAR:
-				return this.index_;
-			case TFUNCALL:
-				return "CALL";
-			default:
-				return "Invalid Token";
-			}
-		};
-	}
-
-	function Expression(tokens, ops1, ops2, functions) {
-		this.tokens = tokens;
-		this.ops1 = ops1;
-		this.ops2 = ops2;
-		this.functions = functions;
-	}
-
-	// Based on http://www.json.org/json2.js
-    var cx = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
-        escapable = /[\\\'\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
-        meta = {    // table of character substitutions
-            '\b': '\\b',
-            '\t': '\\t',
-            '\n': '\\n',
-            '\f': '\\f',
-            '\r': '\\r',
-            "'" : "\\'",
-            '\\': '\\\\'
-        };
-
-	function escapeValue(v) {
-		if (typeof v === "string") {
-			escapable.lastIndex = 0;
-	        return escapable.test(v) ?
-	            "'" + v.replace(escapable, function (a) {
-	                var c = meta[a];
-	                return typeof c === 'string' ? c :
-	                    '\\u' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
-	            }) + "'" :
-	            "'" + v + "'";
-		}
-		return v;
-	}
-
-	Expression.prototype = {
-		simplify: function (values) {
-			values = values || {};
-			var nstack = [];
-			var newexpression = [];
-			var n1;
-			var n2;
-			var f;
-			var L = this.tokens.length;
-			var item;
-			var i = 0;
-			for (i = 0; i < L; i++) {
-				item = this.tokens[i];
-				var type_ = item.type_;
-				if (type_ === TNUMBER) {
-					nstack.push(item);
-				}
-				else if (type_ === TVAR && (item.index_ in values)) {
-					item = new Token(TNUMBER, 0, 0, values[item.index_]);
-					nstack.push(item);
-				}
-				else if (type_ === TOP2 && nstack.length > 1) {
-					n2 = nstack.pop();
-					n1 = nstack.pop();
-					f = this.ops2[item.index_];
-					item = new Token(TNUMBER, 0, 0, f(n1.number_, n2.number_));
-					nstack.push(item);
-				}
-				else if (type_ === TOP1 && nstack.length > 0) {
-					n1 = nstack.pop();
-					f = this.ops1[item.index_];
-					item = new Token(TNUMBER, 0, 0, f(n1.number_));
-					nstack.push(item);
-				}
-				else {
-					while (nstack.length > 0) {
-						newexpression.push(nstack.shift());
-					}
-					newexpression.push(item);
-				}
-			}
-			while (nstack.length > 0) {
-				newexpression.push(nstack.shift());
-			}
-
-			return new Expression(newexpression, object(this.ops1), object(this.ops2), object(this.functions));
-		},
-
-		substitute: function (variable, expr) {
-			if (!(expr instanceof Expression)) {
-				expr = new Parser().parse(String(expr));
-			}
-			var newexpression = [];
-			var L = this.tokens.length;
-			var item;
-			var i = 0;
-			for (i = 0; i < L; i++) {
-				item = this.tokens[i];
-				var type_ = item.type_;
-				if (type_ === TVAR && item.index_ === variable) {
-					for (var j = 0; j < expr.tokens.length; j++) {
-						var expritem = expr.tokens[j];
-						var replitem = new Token(expritem.type_, expritem.index_, expritem.prio_, expritem.number_);
-						newexpression.push(replitem);
-					}
-				}
-				else {
-					newexpression.push(item);
-				}
-			}
-
-			var ret = new Expression(newexpression, object(this.ops1), object(this.ops2), object(this.functions));
-			return ret;
-		},
-
-		evaluate: function (values) {
-			values = values || {};
-			var nstack = [];
-			var n1;
-			var n2;
-			var f;
-			var L = this.tokens.length;
-			var item;
-			var i = 0;
-			for (i = 0; i < L; i++) {
-				item = this.tokens[i];
-				var type_ = item.type_;
-				if (type_ === TNUMBER) {
-					nstack.push(item.number_);
-				}
-				else if (type_ === TOP2) {
-					n2 = nstack.pop();
-					n1 = nstack.pop();
-					f = this.ops2[item.index_];
-					nstack.push(f(n1, n2));
-				}
-				else if (type_ === TVAR) {
-					if (item.index_ in values) {
-						nstack.push(values[item.index_]);
-					}
-					else if (item.index_ in this.functions) {
-						nstack.push(this.functions[item.index_]);
-					}
-					else {
-						throw new Error("undefined variable: " + item.index_);
-					}
-				}
-				else if (type_ === TOP1) {
-					n1 = nstack.pop();
-					f = this.ops1[item.index_];
-					nstack.push(f(n1));
-				}
-				else if (type_ === TFUNCALL) {
-					n1 = nstack.pop();
-					f = nstack.pop();
-					if (f.apply && f.call) {
-						if (Object.prototype.toString.call(n1) == "[object Array]") {
-							nstack.push(f.apply(undefined, n1));
-						}
-						else {
-							nstack.push(f.call(undefined, n1));
-						}
-					}
-					else {
-						throw new Error(f + " is not a function");
-					}
-				}
-				else {
-					throw new Error("invalid Expression");
-				}
-			}
-			if (nstack.length > 1) {
-				throw new Error("invalid Expression (parity)");
-			}
-			return nstack[0];
-		},
-
-		toString: function (toJS) {
-			var nstack = [];
-			var n1;
-			var n2;
-			var f;
-			var L = this.tokens.length;
-			var item;
-			var i = 0;
-			for (i = 0; i < L; i++) {
-				item = this.tokens[i];
-				var type_ = item.type_;
-				if (type_ === TNUMBER) {
-					nstack.push(escapeValue(item.number_));
-				}
-				else if (type_ === TOP2) {
-					n2 = nstack.pop();
-					n1 = nstack.pop();
-					f = item.index_;
-					if (toJS && f == "^") {
-						nstack.push("Math.pow(" + n1 + "," + n2 + ")");
-					}
-					else {
-						nstack.push("(" + n1 + f + n2 + ")");
-					}
-				}
-				else if (type_ === TVAR) {
-					nstack.push(item.index_);
-				}
-				else if (type_ === TOP1) {
-					n1 = nstack.pop();
-					f = item.index_;
-					if (f === "-") {
-						nstack.push("(" + f + n1 + ")");
-					}
-					else {
-						nstack.push(f + "(" + n1 + ")");
-					}
-				}
-				else if (type_ === TFUNCALL) {
-					n1 = nstack.pop();
-					f = nstack.pop();
-					nstack.push(f + "(" + n1 + ")");
-				}
-				else {
-					throw new Error("invalid Expression");
-				}
-			}
-			if (nstack.length > 1) {
-				throw new Error("invalid Expression (parity)");
-			}
-			return nstack[0];
-		},
-
-		variables: function () {
-			var L = this.tokens.length;
-			var vars = [];
-			for (var i = 0; i < L; i++) {
-				var item = this.tokens[i];
-				if (item.type_ === TVAR && (vars.indexOf(item.index_) == -1)) {
-					vars.push(item.index_);
-				}
-			}
-
-			return vars;
-		},
-
-		toJSFunction: function (param, variables) {
-			var f = new Function(param, "with(Parser.values) { return " + this.simplify(variables).toString(true) + "; }");
-			return f;
-		}
-	};
-
-	function add(a, b) {
-		return Number(a) + Number(b);
-	}
-	function sub(a, b) {
-		return a - b; 
-	}
-	function mul(a, b) {
-		return a * b;
-	}
-	function div(a, b) {
-		return a / b;
-	}
-	function mod(a, b) {
-		return a % b;
-	}
-	function concat(a, b) {
-		return "" + a + b;
-	}
-
-	function log10(a) {
-	      return Math.log(a) * Math.LOG10E;
-	}
-	function neg(a) {
-		return -a;
-	}
-
-	function random(a) {
-		return Math.random() * (a || 1);
-	}
-	function fac(a) { //a!
-		a = Math.floor(a);
-		var b = a;
-		while (a > 1) {
-			b = b * (--a);
-		}
-		return b;
-	}
-
-	// TODO: use hypot that doesn't overflow
-	function pyt(a, b) {
-		return Math.sqrt(a * a + b * b);
-	}
-
-	function append(a, b) {
-		if (Object.prototype.toString.call(a) != "[object Array]") {
-			return [a, b];
-		}
-		a = a.slice();
-		a.push(b);
-		return a;
-	}
-
-	function Parser() {
-		this.success = false;
-		this.errormsg = "";
-		this.expression = "";
-
-		this.pos = 0;
-
-		this.tokennumber = 0;
-		this.tokenprio = 0;
-		this.tokenindex = 0;
-		this.tmpprio = 0;
-
-		this.ops1 = {
-			"sin": Math.sin,
-			"cos": Math.cos,
-			"tan": Math.tan,
-			"asin": Math.asin,
-			"acos": Math.acos,
-			"atan": Math.atan,
-			"sqrt": Math.sqrt,
-			"log": Math.log,
-			"lg" : log10,
-			"log10" : log10,
-			"abs": Math.abs,
-			"ceil": Math.ceil,
-			"floor": Math.floor,
-			"round": Math.round,
-			"-": neg,
-			"exp": Math.exp
-		};
-
-		this.ops2 = {
-			"+": add,
-			"-": sub,
-			"*": mul,
-			"/": div,
-			"%": mod,
-			"^": Math.pow,
-			",": append,
-			"||": concat
-		};
-
-		this.functions = {
-			"random": random,
-			"fac": fac,
-			"min": Math.min,
-			"max": Math.max,
-			"pyt": pyt,
-			"pow": Math.pow,
-			"atan2": Math.atan2
-		};
-
-		this.consts = {
-			"E": Math.E,
-			"PI": Math.PI
-		};
-	}
-
-	Parser.parse = function (expr) {
-		return new Parser().parse(expr);
-	};
-
-	Parser.evaluate = function (expr, variables) {
-		return Parser.parse(expr).evaluate(variables);
-	};
-
-	Parser.Expression = Expression;
-
-	Parser.values = {
-		sin: Math.sin,
-		cos: Math.cos,
-		tan: Math.tan,
-		asin: Math.asin,
-		acos: Math.acos,
-		atan: Math.atan,
-		sqrt: Math.sqrt,
-		log: Math.log,
-		lg: log10,
-		log10: log10,
-		abs: Math.abs,
-		ceil: Math.ceil,
-		floor: Math.floor,
-		round: Math.round,
-		random: random,
-		fac: fac,
-		exp: Math.exp,
-		min: Math.min,
-		max: Math.max,
-		pyt: pyt,
-		pow: Math.pow,
-		atan2: Math.atan2,
-		E: Math.E,
-		PI: Math.PI
-	};
-
-	var PRIMARY      = 1 << 0;
-	var OPERATOR     = 1 << 1;
-	var FUNCTION     = 1 << 2;
-	var LPAREN       = 1 << 3;
-	var RPAREN       = 1 << 4;
-	var COMMA        = 1 << 5;
-	var SIGN         = 1 << 6;
-	var CALL         = 1 << 7;
-	var NULLARY_CALL = 1 << 8;
-
-	Parser.prototype = {
-		parse: function (expr) {
-			this.errormsg = "";
-			this.success = true;
-			var operstack = [];
-			var tokenstack = [];
-			this.tmpprio = 0;
-			var expected = (PRIMARY | LPAREN | FUNCTION | SIGN);
-			var noperators = 0;
-			this.expression = expr;
-			this.pos = 0;
-
-			while (this.pos < this.expression.length) {
-				if (this.isOperator()) {
-					if (this.isSign() && (expected & SIGN)) {
-						if (this.isNegativeSign()) {
-							this.tokenprio = 2;
-							this.tokenindex = "-";
-							noperators++;
-							this.addfunc(tokenstack, operstack, TOP1);
-						}
-						expected = (PRIMARY | LPAREN | FUNCTION | SIGN);
-					}
-					else if (this.isComment()) {
-
-					}
-					else {
-						if ((expected & OPERATOR) === 0) {
-							this.error_parsing(this.pos, "unexpected operator");
-						}
-						noperators += 2;
-						this.addfunc(tokenstack, operstack, TOP2);
-						expected = (PRIMARY | LPAREN | FUNCTION | SIGN);
-					}
-				}
-				else if (this.isNumber()) {
-					if ((expected & PRIMARY) === 0) {
-						this.error_parsing(this.pos, "unexpected number");
-					}
-					var token = new Token(TNUMBER, 0, 0, this.tokennumber);
-					tokenstack.push(token);
-
-					expected = (OPERATOR | RPAREN | COMMA);
-				}
-				else if (this.isString()) {
-					if ((expected & PRIMARY) === 0) {
-						this.error_parsing(this.pos, "unexpected string");
-					}
-					var token = new Token(TNUMBER, 0, 0, this.tokennumber);
-					tokenstack.push(token);
-
-					expected = (OPERATOR | RPAREN | COMMA);
-				}
-				else if (this.isLeftParenth()) {
-					if ((expected & LPAREN) === 0) {
-						this.error_parsing(this.pos, "unexpected \"(\"");
-					}
-
-					if (expected & CALL) {
-						noperators += 2;
-						this.tokenprio = -2;
-						this.tokenindex = -1;
-						this.addfunc(tokenstack, operstack, TFUNCALL);
-					}
-
-					expected = (PRIMARY | LPAREN | FUNCTION | SIGN | NULLARY_CALL);
-				}
-				else if (this.isRightParenth()) {
-				    if (expected & NULLARY_CALL) {
-						var token = new Token(TNUMBER, 0, 0, []);
-						tokenstack.push(token);
-					}
-					else if ((expected & RPAREN) === 0) {
-						this.error_parsing(this.pos, "unexpected \")\"");
-					}
-
-					expected = (OPERATOR | RPAREN | COMMA | LPAREN | CALL);
-				}
-				else if (this.isComma()) {
-					if ((expected & COMMA) === 0) {
-						this.error_parsing(this.pos, "unexpected \",\"");
-					}
-					this.addfunc(tokenstack, operstack, TOP2);
-					noperators += 2;
-					expected = (PRIMARY | LPAREN | FUNCTION | SIGN);
-				}
-				else if (this.isConst()) {
-					if ((expected & PRIMARY) === 0) {
-						this.error_parsing(this.pos, "unexpected constant");
-					}
-					var consttoken = new Token(TNUMBER, 0, 0, this.tokennumber);
-					tokenstack.push(consttoken);
-					expected = (OPERATOR | RPAREN | COMMA);
-				}
-				else if (this.isOp2()) {
-					if ((expected & FUNCTION) === 0) {
-						this.error_parsing(this.pos, "unexpected function");
-					}
-					this.addfunc(tokenstack, operstack, TOP2);
-					noperators += 2;
-					expected = (LPAREN);
-				}
-				else if (this.isOp1()) {
-					if ((expected & FUNCTION) === 0) {
-						this.error_parsing(this.pos, "unexpected function");
-					}
-					this.addfunc(tokenstack, operstack, TOP1);
-					noperators++;
-					expected = (LPAREN);
-				}
-				else if (this.isVar()) {
-					if ((expected & PRIMARY) === 0) {
-						this.error_parsing(this.pos, "unexpected variable");
-					}
-					var vartoken = new Token(TVAR, this.tokenindex, 0, 0);
-					tokenstack.push(vartoken);
-
-					expected = (OPERATOR | RPAREN | COMMA | LPAREN | CALL);
-				}
-				else if (this.isWhite()) {
-				}
-				else {
-					if (this.errormsg === "") {
-						this.error_parsing(this.pos, "unknown character");
-					}
-					else {
-						this.error_parsing(this.pos, this.errormsg);
-					}
-				}
-			}
-			if (this.tmpprio < 0 || this.tmpprio >= 10) {
-				this.error_parsing(this.pos, "unmatched \"()\"");
-			}
-			while (operstack.length > 0) {
-				var tmp = operstack.pop();
-				tokenstack.push(tmp);
-			}
-			if (noperators + 1 !== tokenstack.length) {
-				//print(noperators + 1);
-				//print(tokenstack);
-				this.error_parsing(this.pos, "parity");
-			}
-
-			return new Expression(tokenstack, object(this.ops1), object(this.ops2), object(this.functions));
-		},
-
-		evaluate: function (expr, variables) {
-			return this.parse(expr).evaluate(variables);
-		},
-
-		error_parsing: function (column, msg) {
-			this.success = false;
-			this.errormsg = "parse error [column " + (column) + "]: " + msg;
-			throw new Error(this.errormsg);
-		},
-
-//\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
-
-		addfunc: function (tokenstack, operstack, type_) {
-			var operator = new Token(type_, this.tokenindex, this.tokenprio + this.tmpprio, 0);
-			while (operstack.length > 0) {
-				if (operator.prio_ <= operstack[operstack.length - 1].prio_) {
-					tokenstack.push(operstack.pop());
-				}
-				else {
-					break;
-				}
-			}
-			operstack.push(operator);
-		},
-
-		isNumber: function () {
-			var r = false;
-			var str = "";
-			while (this.pos < this.expression.length) {
-				var code = this.expression.charCodeAt(this.pos);
-				if ((code >= 48 && code <= 57) || code === 46) {
-					str += this.expression.charAt(this.pos);
-					this.pos++;
-					this.tokennumber = parseFloat(str);
-					r = true;
-				}
-				else {
-					break;
-				}
-			}
-			return r;
-		},
-
-		// Ported from the yajjl JSON parser at http://code.google.com/p/yajjl/
-		unescape: function(v, pos) {
-			var buffer = [];
-			var escaping = false;
-
-			for (var i = 0; i < v.length; i++) {
-				var c = v.charAt(i);
-	
-				if (escaping) {
-					switch (c) {
-					case "'":
-						buffer.push("'");
-						break;
-					case '\\':
-						buffer.push('\\');
-						break;
-					case '/':
-						buffer.push('/');
-						break;
-					case 'b':
-						buffer.push('\b');
-						break;
-					case 'f':
-						buffer.push('\f');
-						break;
-					case 'n':
-						buffer.push('\n');
-						break;
-					case 'r':
-						buffer.push('\r');
-						break;
-					case 't':
-						buffer.push('\t');
-						break;
-					case 'u':
-						// interpret the following 4 characters as the hex of the unicode code point
-						var codePoint = parseInt(v.substring(i + 1, i + 5), 16);
-						buffer.push(String.fromCharCode(codePoint));
-						i += 4;
-						break;
-					default:
-						throw this.error_parsing(pos + i, "Illegal escape sequence: '\\" + c + "'");
-					}
-					escaping = false;
-				} else {
-					if (c == '\\') {
-						escaping = true;
-					} else {
-						buffer.push(c);
-					}
-				}
-			}
-	
-			return buffer.join('');
-		},
-
-		isString: function () {
-			var r = false;
-			var str = "";
-			var startpos = this.pos;
-			if (this.pos < this.expression.length && this.expression.charAt(this.pos) == "'") {
-				this.pos++;
-				while (this.pos < this.expression.length) {
-					var code = this.expression.charAt(this.pos);
-					if (code != "'" || str.slice(-1) == "\\") {
-						str += this.expression.charAt(this.pos);
-						this.pos++;
-					}
-					else {
-						this.pos++;
-						this.tokennumber = this.unescape(str, startpos);
-						r = true;
-						break;
-					}
-				}
-			}
-			return r;
-		},
-
-		isConst: function () {
-			var str;
-			for (var i in this.consts) {
-				if (true) {
-					var L = i.length;
-					str = this.expression.substr(this.pos, L);
-					if (i === str) {
-						this.tokennumber = this.consts[i];
-						this.pos += L;
-						return true;
-					}
-				}
-			}
-			return false;
-		},
-
-		isOperator: function () {
-			var code = this.expression.charCodeAt(this.pos);
-			if (code === 43) { // +
-				this.tokenprio = 0;
-				this.tokenindex = "+";
-			}
-			else if (code === 45) { // -
-				this.tokenprio = 0;
-				this.tokenindex = "-";
-			}
-			else if (code === 124) { // |
-				if (this.expression.charCodeAt(this.pos + 1) === 124) {
-					this.pos++;
-					this.tokenprio = 0;
-					this.tokenindex = "||";
-				}
-				else {
-					return false;
-				}
-			}
-			else if (code === 42 || code === 8729 || code === 8226) { // * or ∙ or •
-				this.tokenprio = 1;
-				this.tokenindex = "*";
-			}
-			else if (code === 47) { // /
-				this.tokenprio = 2;
-				this.tokenindex = "/";
-			}
-			else if (code === 37) { // %
-				this.tokenprio = 2;
-				this.tokenindex = "%";
-			}
-			else if (code === 94) { // ^
-				this.tokenprio = 3;
-				this.tokenindex = "^";
-			}
-			else {
-				return false;
-			}
-			this.pos++;
-			return true;
-		},
-
-		isSign: function () {
-			var code = this.expression.charCodeAt(this.pos - 1);
-			if (code === 45 || code === 43) { // -
-				return true;
-			}
-			return false;
-		},
-
-		isPositiveSign: function () {
-			var code = this.expression.charCodeAt(this.pos - 1);
-			if (code === 43) { // +
-				return true;
-			}
-			return false;
-		},
-
-		isNegativeSign: function () {
-			var code = this.expression.charCodeAt(this.pos - 1);
-			if (code === 45) { // -
-				return true;
-			}
-			return false;
-		},
-
-		isLeftParenth: function () {
-			var code = this.expression.charCodeAt(this.pos);
-			if (code === 40) { // (
-				this.pos++;
-				this.tmpprio += 10;
-				return true;
-			}
-			return false;
-		},
-
-		isRightParenth: function () {
-			var code = this.expression.charCodeAt(this.pos);
-			if (code === 41) { // )
-				this.pos++;
-				this.tmpprio -= 10;
-				return true;
-			}
-			return false;
-		},
-
-		isComma: function () {
-			var code = this.expression.charCodeAt(this.pos);
-			if (code === 44) { // ,
-				this.pos++;
-				this.tokenprio = -1;
-				this.tokenindex = ",";
-				return true;
-			}
-			return false;
-		},
-
-		isWhite: function () {
-			var code = this.expression.charCodeAt(this.pos);
-			if (code === 32 || code === 9 || code === 10 || code === 13) {
-				this.pos++;
-				return true;
-			}
-			return false;
-		},
-
-		isOp1: function () {
-			var str = "";
-			for (var i = this.pos; i < this.expression.length; i++) {
-				var c = this.expression.charAt(i);
-				if (c.toUpperCase() === c.toLowerCase()) {
-					if (i === this.pos || (c != '_' && (c < '0' || c > '9'))) {
-						break;
-					}
-				}
-				str += c;
-			}
-			if (str.length > 0 && (str in this.ops1)) {
-				this.tokenindex = str;
-				this.tokenprio = 5;
-				this.pos += str.length;
-				return true;
-			}
-			return false;
-		},
-
-		isOp2: function () {
-			var str = "";
-			for (var i = this.pos; i < this.expression.length; i++) {
-				var c = this.expression.charAt(i);
-				if (c.toUpperCase() === c.toLowerCase()) {
-					if (i === this.pos || (c != '_' && (c < '0' || c > '9'))) {
-						break;
-					}
-				}
-				str += c;
-			}
-			if (str.length > 0 && (str in this.ops2)) {
-				this.tokenindex = str;
-				this.tokenprio = 5;
-				this.pos += str.length;
-				return true;
-			}
-			return false;
-		},
-
-		isVar: function () {
-			var str = "";
-			for (var i = this.pos; i < this.expression.length; i++) {
-				var c = this.expression.charAt(i);
-				if (c.toUpperCase() === c.toLowerCase()) {
-					if (i === this.pos || (c != '_' && (c < '0' || c > '9'))) {
-						break;
-					}
-				}
-				str += c;
-			}
-			if (str.length > 0) {
-				this.tokenindex = str;
-				this.tokenprio = 4;
-				this.pos += str.length;
-				return true;
-			}
-			return false;
-		},
-
-		isComment: function () {
-			var code = this.expression.charCodeAt(this.pos - 1);
-			if (code === 47 && this.expression.charCodeAt(this.pos) === 42) {
-				this.pos = this.expression.indexOf("*/", this.pos) + 2;
-				if (this.pos === 1) {
-					this.pos = this.expression.length;
-				}
-				return true;
-			}
-			return false;
-		}
-	};
-
-	scope.Parser = Parser;
-	return Parser
-})(typeof exports === 'undefined' ? {} : exports);
-
-},{}],23:[function(require,module,exports){
+},{"./pointer.js":24,"bauer-factory":1,"events":14}],24:[function(require,module,exports){
+'use strict';
 // - -------------------------------------------------------------------- - //
 // - Libs
 
-var events = require("events");
-var factory = require("bauer-factory");
+var events = require('events');
+var factory = require('bauer-factory');
 
 // - -------------------------------------------------------------------- - //
 // - Pointer
@@ -4041,169 +3397,172 @@ var Pointer = factory.class({
   
   inherits: events.EventEmitter,
   
-  // new Pointer(node)
-  constructor: function(node) {
-    this.top = 0;
-    this.left = 0;
-    this.node = node;    
-    this.addListener();
-  },
+    // new Pointer(node)
+    constructor: function(node) {
+        this.vars = {};
+        this.node = node;
+        this.initEventListeners();
+    },
   
-  // .addListener()
-  addListener: function() {
+    // .initEventListeners()
+    initEventListeners: function() {
     
-    var pointer = this;
-    
-    var hasPointer = window.navigator.msPointerEnabled;
-		if (hasPointer) {
-			this.node.style["touchAction"] = "none";
-		}
-    
-    var documentElement = document.documentElement;
-		var hasEventsCoords = !!document.addEventListener;
-    
-    var mouseUp = "mouseup";
-		var mouseDown = "mousedown";
-		var mouseMove = "mousemove";
-		var contextMenu = "contextmenu";
-		var leftKeyCode = 1;
-		var leftButtonCode = 1;
-		var rightKeyCode = 3;
-		var rightButtonCode = 2;
-		var dragDistance = 3;
+        var pointer = this;
+        var node = this.node;
+        var documentElement = document.documentElement;
+        var hasEventsCoords = !!document.addEventListener;
+        var mouseUp = 'mouseup';
+        var mouseDown = 'mousedown';
+        var mouseMove = 'mousemove';
+        var contextMenu = 'contextmenu';
+        var leftKeyCode = 1;
+        var leftButtonCode = 1;
+        var rightKeyCode = 3;
+        var rightButtonCode = 2;
+        var dragDistance = 3;
+        var isDragging = false;
+        var isLeftButton = false;
+        var isRightButton = false;
+        var startX;
+        var startY;
+        var currentX;
+        var currentY;
+        var addListener;
+        var removeListener;
+        var handleMenu;
+        var handleDown;
+        var handleUp;
+        var handleMove;
 
-		var startX;
-		var startY;
-		var isClick = false;
-		var isDragging = false;
-		var isLeftButton = false;
-		var isRightButton = false;
-    
-    var addListener = function(element,event,handler) {
-			if (element.addEventListener) {
-				element.addEventListener(event,handler,false);
-			} else if (node.attachEvent) {
-				element.attachEvent("on" + event,handler);
-			}
-		};
-    
-    var removeListener = function(element,event,handler) {
-			if (element.removeEventListener) {
-				element.removeEventListener(event,handler,false);
-			} else if (node.detachEvent) {
-				element.detachEvent("on" + event,handler);
-			}
-    };
-    
-    var handleMenu = function(event) {
-			event.returnValue = false;
-			if (typeof event.preventDefault === "function") {
-				event.preventDefault();
-			}
-			event.cancelBubble = true;
-			if (typeof event.stopPropagation === "function") {
-				event.stopPropagation();
-			}
-		};
+        if (window.navigator.msPointerEnabled) {
+            this.node.style.touchAction = 'none';
+        }
 
-		var handleMove  = function(event) {
-			event.returnValue = false;
-			if (typeof event.preventDefault === "function") {
-				event.preventDefault();
-			}
-			event.cancelBubble = true;
-			if (typeof event.stopPropagation === "function") {
-				event.stopPropagation();
-			}
-			var currentX;
-			var currentY;
-			if (hasEventsCoords) {
-				currentX = event.pageX;
-				currentY = event.pageY;
-			} else {
-				currentX = event.clientX + documentElement.scrollLeft;
-				currentY = event.clientY + documentElement.scrollTop;
-			}
-      pointer.top = currentY;
-      pointer.left = currentX;
-      event.pointer = pointer;      
-      event.isLeftClick = isLeftButton;
-      event.isRightClick = isRightButton;
-      pointer.emit("move",event);
-			if (isDragging) {				
-				pointer.emit("dragmove",event);
-			} else if (isLeftButton || isRightButton) {
-				isDragging = (Math.abs(currentX - startX) > dragDistance) || (Math.abs(currentY - startY) > dragDistance);
-				if (isDragging) {					
-					pointer.emit("dragstart",event);
-				}
-			}
-		};
+        addListener = function(element,event,handler) {
+            if (element.addEventListener) {
+                element.addEventListener(event,handler,false);
+            } else if (node.attachEvent) {
+                element.attachEvent('on' + event,handler);
+            }
+        };
 
-		var handleUp = function(event) {
-			event.returnValue = false;
-			if (typeof event.preventDefault === "function") {
-				event.preventDefault();
-			}
-			var currentX;
-			var currentY;
-			if (hasEventsCoords) {
-				currentX = event.pageX;
-				currentY = event.pageY;
-			} else {
-				currentX = event.clientX + documentElement.scrollLeft;
-				currentY = event.clientY + documentElement.scrollTop;
-			}
-      pointer.top = currentY;
-      pointer.left = currentX;
-      event.pointer = pointer;      
-      event.isLeftClick = isLeftButton;
-      event.isRightClick = isRightButton;
-			if (isDragging) {				
-				pointer.emit("dragstop",event);
-			} else if (isLeftButton) {				
-				pointer.emit("click",event);
-			} else if (isRightButton) {				
-				pointer.emit("rightclick",event);
-			}
-			startX = undefined;
-			startY = undefined;
-			isDragging = false;
-			isLeftButton = false;
-			isRightButton = false;			
-		};
+        removeListener = function(element,event,handler) {
+            if (element.removeEventListener) {
+                element.removeEventListener(event,handler,false);
+            } else if (node.detachEvent) {
+                element.detachEvent('on' + event,handler);
+            }
+        };
 
-		var handleDown = function(event) {
-			event.returnValue = false;
-			if (typeof event.preventDefault === "function") {
-				event.preventDefault();
-			}
-			if (event.which) {
-				isLeftButton = event.which === leftKeyCode;
-				isRightButton = event.which === rightKeyCode;
-			} else if (event.button) {
-				isLeftButton = event.button === leftButtonCode;
-				isRightButton = event.button === rightButtonCode;
-			}
-			if (isLeftButton || isRightButton) {
-				if (hasEventsCoords) {
-					startX = event.pageX;
-					startY = event.pageY;
-				} else {
-					startX = event.clientX + documentElement.scrollLeft;
-					startY = event.clientY + documentElement.scrollTop;
-				}				
-			}
-      pointer.top = startY;
-      pointer.left = startX;
-		};
+        handleMenu = function(event) {
+            event.returnValue = false;
+            if (typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+            event.cancelBubble = true;
+            if (typeof event.stopPropagation === 'function') {
+                event.stopPropagation();
+            }
+        };
 
-		addListener(this.node,mouseDown,handleDown);
-		addListener(this.node,mouseMove,handleMove);
-    addListener(this.node,mouseUp,handleUp);
-    addListener(this.node,contextMenu,handleMenu);
-    
-  },
+        handleMove  = function(event) {
+            event.returnValue = false;
+            if (typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+            event.cancelBubble = true;
+            if (typeof event.stopPropagation === 'function') {
+                event.stopPropagation();
+            }
+            if (hasEventsCoords) {
+                currentX = event.pageX;
+                currentY = event.pageY;
+            } else {
+                currentX = event.clientX + documentElement.scrollLeft;
+                currentY = event.clientY + documentElement.scrollTop;
+            }
+            pointer.vars.top = currentY;
+            pointer.vars.left = currentX;
+            event.pointer = pointer;
+            event.isLeftClick = isLeftButton;
+            event.isRightClick = isRightButton;
+            pointer.emit('move',event);
+            if (isDragging) {				
+                pointer.emit('dragmove',event);
+            } else if (isLeftButton || isRightButton) {
+                isDragging = (Math.abs(currentX - startX) > dragDistance) || (Math.abs(currentY - startY) > dragDistance);
+                if (isDragging) {					
+                    pointer.emit('dragstart',event);
+                }
+            }
+        };
+
+        handleUp = function(event) {
+            event.returnValue = false;
+            if (typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+            if (hasEventsCoords) {
+                currentX = event.pageX;
+                currentY = event.pageY;
+            } else {
+                currentX = event.clientX + documentElement.scrollLeft;
+                currentY = event.clientY + documentElement.scrollTop;
+            }
+            pointer.vars.top = currentY;
+            pointer.vars.left = currentX;
+            event.pointer = pointer;      
+            event.isLeftClick = isLeftButton;
+            event.isRightClick = isRightButton;
+            pointer.emit('up',event);
+            if (isDragging) {				
+                pointer.emit('dragstop',event);
+            } else if (isLeftButton) {				
+                pointer.emit('click',event);
+            } else if (isRightButton) {				
+                pointer.emit('rightclick',event);
+            }
+            startX = undefined;
+            startY = undefined;
+            isDragging = false;
+            isLeftButton = false;
+            isRightButton = false;			
+        };
+
+        handleDown = function(event) {
+            event.returnValue = false;
+            if (typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+            if (event.which) {
+                isLeftButton = event.which === leftKeyCode;
+                isRightButton = event.which === rightKeyCode;
+            } else if (event.button) {
+                isLeftButton = event.button === leftButtonCode;
+                isRightButton = event.button === rightButtonCode;
+            }
+            if (isLeftButton || isRightButton) {
+                if (hasEventsCoords) {
+                    startX = event.pageX;
+                    startY = event.pageY;
+                } else {
+                    startX = event.clientX + documentElement.scrollLeft;
+                    startY = event.clientY + documentElement.scrollTop;
+                }				
+            }
+            pointer.vars.top = startY;
+            pointer.vars.left = startX;
+            event.pointer = pointer;      
+            event.isLeftClick = isLeftButton;
+            event.isRightClick = isRightButton;
+            pointer.emit('down',event);
+        };
+
+        addListener(this.node,mouseDown,handleDown);
+        addListener(this.node,mouseMove,handleMove);
+        addListener(this.node,mouseUp,handleUp);
+        addListener(this.node,contextMenu,handleMenu);
+    },
   
 });
 
@@ -4214,4 +3573,4 @@ module.exports = Pointer;
 
 // - -------------------------------------------------------------------- - //
 
-},{"bauer-factory":1,"events":13}]},{},[19]);
+},{"bauer-factory":1,"events":14}]},{},[20]);

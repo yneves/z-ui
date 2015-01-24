@@ -1,102 +1,129 @@
+'use strict';
 // - -------------------------------------------------------------------- - //
 // - Libs
 
-var events = require("events");
-var factory = require("bauer-factory");
-var Pointer = require("./pointer.js");
+var events = require('events');
+var factory = require('bauer-factory');
+var Pointer = require('./pointer.js');
 
 // - -------------------------------------------------------------------- - //
 // - Layout
 
 var Layout = factory.class({
 
-  inherits: events.EventEmitter,
-  
-  // new Layout(node)
-  constructor: function(node) {
-    
-    this.vars = {};
-    this.elements = [];
-    
-    this.node = node;
-    
-    this.pointer = new Pointer(this.node);
-    this.pointer.on("move",this._onPointerMove.bind(this));    
-    
-    this._onWindowResize();
-    
-  },
+    inherits: events.EventEmitter,
+
+    // new Layout(node)
+    constructor: function(node) {
+        this.vars = {};
+        this.areas = [];
+        this.node = node;
+        this.pointer = new Pointer(this.node);
+        this.pointer.on('move',this._onPointerMove.bind(this));
+        window.onresize = this._onWindowResize.bind(this);
+        this.updateVars();
+    },
+
+    _onPointerMove: function() {
+        this.applyInteraction();
+    },
+
+    _onWindowResize: function() {
+        this.updateVars();
+    },
 
 // - -------------------------------------------------------------------- - //
 
-  _onPointerMove: function(event) {    
-    this.applyInteraction();
-  },
-
-  _onWindowResize: function() {
-    this.vars.width = parseInt(this.node.offsetWidth);
-    this.vars.height = parseInt(this.node.offsetHeight);
-  },
-
-// - -------------------------------------------------------------------- - //
-    
-  // .addElement(element, ...)
-  addElement: function() {
-    var node = this.node;
-    var elements = this.elements;
-    var length = arguments.length;
-    for (var i = 0; i < length; i++) {
-      var element = arguments[i];
-      elements[element.id] = element;
-      node.appendChild(element.node);
-    }    
-  },
-
-// - -------------------------------------------------------------------- - //
-  
-  // .applyLayout()
-  applyLayout: function() {
-    var coords = {};
-    var elements = this.elements;
-    var ids = Object.keys(elements);
-    var length = ids.length;    
-    for (var i = 0; i < length; i++) {
-      var id = ids[i];
-      coords[id] = factory.clone(elements[id].coords);
-    }
-    var doneCount = 0;
-    var doneElements = {};    
-    for (var c = 0; c < 10; c++) {
-      for (var e = 0; e < length; e++) {
-        if (!doneElements[e]) {
-          if (elements[ids[e]].applyLayout(coords)) {
-            doneCount++;
-            doneElements[e] = true;
-          }
+    // .addArea(area, ...)
+    addArea: function() {
+        
+        var node = this.node;
+        var areas = this.areas;
+        var length = arguments.length;
+        var i;
+        var area;
+        
+        for (i = 0; i < length; i++) {
+            area = arguments[i];
+            areas[area.id] = area;
+            node.appendChild(area.node);
+            area.setLayout(this);
         }
-      }      
-      if (doneCount === length) {
-        break;
-      }
-    }
-  },
-  
-  // .applyInteraction()
-  applyInteraction: function() {
-    var elements = this.elements;
-    var ids = Object.keys(elements);
-    var length = ids.length;
-    for (var i = 0; i < length; i++) {
-      var element = elements[ids[i]];
-      var context = {};
-      context.event = event;
-      context.layout = this;
-      context.pointer = this.pointer;
-      context.element = element;
-      element.applyInteraction(context);
-    }
-  },
-  
+        
+    },
+
+// - -------------------------------------------------------------------- - //
+
+    // .updateVars()
+    updateVars: function() {
+        var vars = this.vars;
+        var node = this.node;
+        vars.width = Number(node.offsetWidth);
+        vars.height = Number(node.offsetHeight);
+        vars.top = Number(node.offsetTop);
+        vars.left = Number(node.offsetLeft);
+        vars.right = vars.left + vars.width;
+        vars.bottom = vars.top + vars.height;
+    },
+
+// - -------------------------------------------------------------------- - //
+
+    // .applyLayout()
+    applyLayout: function() {
+
+        var coords = {};
+        var doneCount = 0;
+        var doneAreas = {};
+        var areas = this.areas;
+        var ids = Object.keys(areas);
+        var length = ids.length;
+        var c;
+        var i;
+        var id;
+
+        for (i = 0; i < length; i++) {
+            id = ids[i];
+            coords[id] = areas[id].getCoords();
+        }
+
+        for (c = 0; c < 10; c++) {
+            for (i = 0; i < length; i++) {
+                if (!doneAreas[i]) {
+                    if (areas[ids[i]].applyLayout(coords)) {
+                        doneCount++;
+                        doneAreas[i] = true;
+                    }
+                }
+            }
+            if (doneCount === length) {
+                break;
+            }
+        }
+
+    },
+
+    // .applyInteraction()
+    applyInteraction: function() {
+        
+        var areas = this.areas;
+        var ids = Object.keys(areas);
+        var length = ids.length;
+        var i;
+        var id;
+        var area;
+
+        for (i = 0; i < length; i++) {
+            id = ids[i];
+            area = areas[id];
+            area.applyInteraction({
+                area: area,
+                layout: this,
+                pointer: this.pointer,
+            });
+        }
+        
+    },
+
 });
 
 // - -------------------------------------------------------------------- - //

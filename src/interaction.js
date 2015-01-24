@@ -1,50 +1,66 @@
+'use strict';
 // - -------------------------------------------------------------------- - //
 // - Libs
 
-var events = require("events");
-var factory = require("bauer-factory");
+var events = require('events');
+var factory = require('bauer-factory');
 
 // - -------------------------------------------------------------------- - //
 // - Interaction
 
 var Interaction = factory.class({
   
-  inherits: events.EventEmitter,
+    inherits: events.EventEmitter,
   
-  // new Interaction(options)
-  constructor: function(options) {
-    this.active = {};
-    this.evaluator = factory.createEvaluator(options);
-  },  
-  
-  evaluate: {
+    // new Interaction()
+    constructor: function() {
+        this.active = {};        
+    },  
     
-    // .evaluate(vars)
-    o: function(vars) {      
-      return this.evaluator.evaluate(vars);
+    createEvaluator: {
+        
+        // .createEvaluator(expr)
+        s: function(expr) {
+            this.evaluator = factory.createEvaluator(expr);
+        },
+        
+        // .createEvaluator(parts)
+        a: function(parts) {
+            this.createEvaluator(parts.join(' && '));
+        },
+        
+        // .createEvaluator(options)
+        o: function(options) {
+            this.evaluator = factory.createEvaluator(options);
+        },
+        
     },
-      
-  },
   
-  // .triggerInteraction(event)
-  triggerInteraction: function(event) {
-    var activate = this.evalExpr({ 
-      element: event.element,
-      pointer: event.pointer, 
-      layout: event.layout,
-    });
-    if (activate) {
-      if (!this.active[event.element.id]) {
-        this.active[event.element.id] = true;
-        this.emit("activate",event);
-      }
-    } else {
-      if (this.active[event.element.id]) {
-        this.active[event.element.id] = false;
-        this.emit("deactivate",event);
-      }
-    }
-  },
+    // .applyInteraction(context)
+    applyInteraction: function(context) {        
+        var active = this.active;
+        var areaId;
+        var activate;        
+        if (this.evaluator) {
+            areaId = context.area.id;
+            activate = this.evaluator.evaluate({ 
+                area: context.area.vars,            
+                layout: context.layout.vars,
+                pointer: context.pointer.vars, 
+            });
+            if (activate) {
+                if (!active[areaId]) {
+                    active[areaId] = context;
+                    this.emit('activate',context);
+                }
+            } else {
+                if (active[areaId]) {
+                    this.emit('deactivate',active[areaId]);
+                    delete active[areaId];
+                }
+            }
+        }
+    },
   
 });
 
