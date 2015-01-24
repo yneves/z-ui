@@ -13,14 +13,13 @@ var Pointer = factory.class({
   
   // new Pointer(node)
   constructor: function(node) {
-    this.top = 0;
-    this.left = 0;
-    this.node = node;    
-    this.addListener();
+    this.vars = {};
+    this.node = node;
+    this.initEventListeners();
   },
   
-  // .addListener()
-  addListener: function() {
+  // .initEventListeners()
+  initEventListeners: function() {
     
     var pointer = this;
     
@@ -94,9 +93,9 @@ var Pointer = factory.class({
 				currentX = event.clientX + documentElement.scrollLeft;
 				currentY = event.clientY + documentElement.scrollTop;
 			}
-      pointer.top = currentY;
-      pointer.left = currentX;
-      event.pointer = pointer;      
+      pointer.vars.top = currentY;
+      pointer.vars.left = currentX;
+      event.pointer = pointer;
       event.isLeftClick = isLeftButton;
       event.isRightClick = isRightButton;
       pointer.emit("move",event);
@@ -124,8 +123,8 @@ var Pointer = factory.class({
 				currentX = event.clientX + documentElement.scrollLeft;
 				currentY = event.clientY + documentElement.scrollTop;
 			}
-      pointer.top = currentY;
-      pointer.left = currentX;
+      pointer.vars.top = currentY;
+      pointer.vars.left = currentX;
       event.pointer = pointer;      
       event.isLeftClick = isLeftButton;
       event.isRightClick = isRightButton;
@@ -164,8 +163,8 @@ var Pointer = factory.class({
 					startY = event.clientY + documentElement.scrollTop;
 				}				
 			}
-      pointer.top = startY;
-      pointer.left = startX;
+      pointer.vars.top = startY;
+      pointer.vars.left = startX;
 		};
 
 		addListener(this.node,mouseDown,handleDown);
